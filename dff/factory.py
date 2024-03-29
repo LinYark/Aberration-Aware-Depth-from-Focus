@@ -46,6 +46,8 @@ def get_dataset(args):
         test_set = Middlebury(args['Middlebury2021_val'], resize=args['res'], train=False)
     elif test_dataset_name == 'RealWorld':
         test_set = RealWorld(args['RealWorld_val'], resize=args['res'], depth=False)
+    elif test_dataset_name == 'FlyingThings3D':
+        test_set = FlyingThings3D(args['FlyingThings3D_test'], resize=args['res'], train=False)
     else:
         raise NotImplementedError
     

@@ -24,6 +24,8 @@ from deeplens.utils import set_seed, set_logger
 from deeplens.psfnet import *
 from dff import *
 
+from torch.cuda.amp import autocast, GradScaler
+
 def config():
     with open('configs/aber_aware_dff_aif.yml') as f:
         args = yaml.load(f, Loader=yaml.FullLoader)
@@ -65,8 +67,8 @@ def train(args):
     
     dff_net = AiFDepthNet(n_stack=args['n_stack'])
     dff_net = nn.DataParallel(dff_net)
-    if args['train']['dffnet_pretrained']:
-        dff_net.load_state_dict(torch.load(args['train']['dffnet_pretrained']))
+    # if args['train']['dffnet_pretrained']:
+    #     dff_net.load_state_dict(torch.load(args['train']['dffnet_pretrained']))
     dff_net = dff_net.to(device)
 
     # Dataset
@@ -78,7 +80,8 @@ def train(args):
     # Optimizer
     optimizer = optim.Adam(dff_net.parameters(), lr=float(args['lr']))
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args['epochs']*len(train_set), eta_min=0)
-
+    scaler = GradScaler()
+    
     # Training
     args['mse_min'] = 100
     args['acc1_max'] = 0.0
@@ -117,12 +120,13 @@ def train(args):
 
             # Forward-backward optimization
             input_dict = {'stack_rgb_img':focal_stack, 'focus_position':focus_dists, 'depth':depth, 'AiF_img':aif}
-            losses, outputs = dff_net(input_dict, aif_args)
-
             optimizer.zero_grad()
-            loss = losses['total'].mean()
-            loss.backward()            
-            optimizer.step()
+            with autocast():
+                losses, outputs = dff_net(input_dict, aif_args)
+                loss = losses['total'].mean()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
             scheduler.step()
 
 

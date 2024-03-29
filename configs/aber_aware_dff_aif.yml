@@ -10,14 +10,14 @@ train:
   # foc_lens: 50
   # fnum: 1.8
 
-  dataset: 'Matterport3D'
-  dffnet_pretrained: './ckpt/rf50mm/aifnet_stack8_480x640.pkl'
+  dataset: 'FlyingThings3D'
+  # dffnet_pretrained: './ckpt/rf50mm/aifnet_stack8_480x640.pkl'
 
 test:
   lens: './lenses/rf50mm/lens.json'
   psfnet_path: './ckpt/rf50mm/PSFNet480x640_ks11.pkl'
 
-  dataset: 'Middlebury2014'
+  dataset: 'FlyingThings3D'
 
 # Input focal stack [B, S, C, H, W]
 bs: 2 # batch size
@@ -35,3 +35,5 @@ test_depth_dir: './dataset/Matterport3D/test/depth'
 
 Middlebury2014_val: './dataset/Middlebury2014'  # Use depth for more accurate quantitative score
 Middlebury2021_val: './dataset/Middlebury2021'
+FlyingThings3D_train: './dataset/FlyingThings3D_FS/train/focal_stack'
+FlyingThings3D_test: './dataset/FlyingThings3D_FS/val/focal_stack'
