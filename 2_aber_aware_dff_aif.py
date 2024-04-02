@@ -73,7 +73,7 @@ def train(args):
 
     # Dataset
     train_set, val_set = get_dataset(args)
-    train_loader = DataLoader(train_set, batch_size=args['bs'])
+    train_loader = DataLoader(train_set, batch_size=args['bs'], num_workers=4, pin_memory=True)
     val_loader = DataLoader(val_set, batch_size=1)
     print(f'Totally {len(train_set)} images for training, {len(val_set)} images for test.')
 
@@ -116,7 +116,7 @@ def train(args):
                     focal_stack.append(defocus_img)
                 focal_stack = torch.stack(focal_stack, dim=2)   # shape of [B, C, S, H, W]
             
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
 
             # Forward-backward optimization
             input_dict = {'stack_rgb_img':focal_stack, 'focus_position':focus_dists, 'depth':depth, 'AiF_img':aif}

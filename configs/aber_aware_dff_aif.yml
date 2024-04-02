@@ -11,7 +11,7 @@ train:
   # fnum: 1.8
 
   dataset: 'FlyingThings3D'
-  # dffnet_pretrained: './ckpt/rf50mm/aifnet_stack8_480x640.pkl'
+  dffnet_pretrained: './ckpt/rf50mm/depth_net_best.pkl'
 
 test:
   lens: './lenses/rf50mm/lens.json'
@@ -20,13 +20,13 @@ test:
   dataset: 'FlyingThings3D'
 
 # Input focal stack [B, S, C, H, W]
-bs: 2 # batch size
-n_stack: 8  # focal stack size
+bs: 4 # batch size
+n_stack: 4  # focal stack size
 res: !!python/tuple [480, 640]  # input image resolution
 
 ks: 11 # PSF kernel size
-lr: 1e-4  # DFF network learning rate
-epochs: 20  # DFF network training epochs
+lr: 5e-4  # DFF network learning rate
+epochs: 500  # DFF network training epochs
 
 train_aif_dir: './dataset/Matterport3D/train/aif'
 train_depth_dir: './dataset/Matterport3D/train/depth'
