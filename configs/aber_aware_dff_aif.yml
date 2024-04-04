@@ -11,7 +11,7 @@ train:
   # fnum: 1.8
 
   dataset: 'FlyingThings3D'
-  dffnet_pretrained: './ckpt/rf50mm/depth_net_best.pkl'
+  dffnet_pretrained: './results/depth_net_best.pkl'
 
 test:
   lens: './lenses/rf50mm/lens.json'
@@ -21,7 +21,7 @@ test:
 
 # Input focal stack [B, S, C, H, W]
 bs: 4 # batch size
-n_stack: 4  # focal stack size
+n_stack: 1  # focal stack size
 res: !!python/tuple [480, 640]  # input image resolution
 
 ks: 11 # PSF kernel size

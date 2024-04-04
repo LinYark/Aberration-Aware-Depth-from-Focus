@@ -11,7 +11,7 @@ def select_focus_dist(depth, num, mode='linear', center=True):
             "linear": sample linearly to approximate real-world applications.
             "importance": sample more data from close distances.
     """
-    assert num > 3, 'Focal stack size is too small'
+    # assert num > 3, 'Focal stack size is too small'
     B, C, H, W = depth.shape
     mask = (depth > 0)
 
@@ -45,7 +45,7 @@ def select_focus_dist(depth, num, mode='linear', center=True):
                 focus_dists.append(focus_dist)
     else:
         raise NotImplementedError
-
+    focus_dists = [avg_depth]
     focus_dists = torch.stack(focus_dists, dim=1)
     focus_dists = torch.sort(focus_dists, dim=-1)[0]
     return focus_dists

@@ -95,7 +95,7 @@ class AiFDepthNet(nn.Module):
                  n_stack=10,
                  disp_w=1,
                  aif_w=0,
-                 smooth_w=0,
+                 smooth_w=0.2,
                  focal_length=521.4052,
                  baseline=0.00027087,
                  depth_min=0.1,
@@ -103,7 +103,7 @@ class AiFDepthNet(nn.Module):
                  mask_range=False,
                  normalize_attention=False,
                  disp_depth='depth',
-                 stage2='attention'):
+                 stage2='DIRECT'):
         super().__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
@@ -287,12 +287,12 @@ class AiFDepthNet(nn.Module):
         if 'focus_position' in input_dict:
             self.d_layers = input_dict['focus_position']
 
-        if self.n_channels == 4:
-            B, C, S, H, W = stack_rgb.shape
-            stack_rgb = torch.cat([
-                stack_rgb, (torch.arange(1, S + 1) / float(S)).view(
-                    1, 1, S, 1, 1).repeat(B, 1, 1, H, W).to(args['device'])
-            ], 1)
+        # if self.n_channels == 4:
+        #     B, C, S, H, W = stack_rgb.shape
+        #     stack_rgb = torch.cat([
+        #         stack_rgb, (torch.arange(1, S + 1) / float(S)).view(
+        #             1, 1, S, 1, 1).repeat(B, 1, 1, H, W).to(args['device'])
+        #     ], 1)
 
         # run model
         outputs = self.fit(stack_rgb, args)
@@ -590,12 +590,12 @@ class AiFDepthNet(nn.Module):
         if 'focus_position' in input_dict:
             self.d_layers = input_dict['focus_position']
 
-        if self.n_channels == 4:
-            B, C, S, H, W = stack_rgb.shape
-            stack_rgb = torch.cat([
-                stack_rgb, (torch.arange(1, S + 1) / float(S)).view(
-                    1, 1, S, 1, 1).repeat(B, 1, 1, H, W).to(args['device'])
-            ], 1)
+        # if self.n_channels == 4:
+        #     B, C, S, H, W = stack_rgb.shape
+        #     stack_rgb = torch.cat([
+        #         stack_rgb, (torch.arange(1, S + 1) / float(S)).view(
+        #             1, 1, S, 1, 1).repeat(B, 1, 1, H, W).to(args['device'])
+        #     ], 1)
 
         # run model
         outputs = self.fit(stack_rgb, args)

@@ -60,20 +60,26 @@ def train(args):
     
     # Depth-from-focus network
     if args['pred_name'] == 'depth':
-        aif_args = {'device':device, 'task':'D_FS', 'stack_num':args['n_stack']}
+        aif_args = {'device':device, 'task':'DA_FS', 'stack_num':args['n_stack']}
     elif args['pred_name'] == 'aif':
         aif_args = {'device':device, 'task':'A_FS', 'stack_num':args['n_stack']}
     args['aif_args'] = aif_args
     
-    dff_net = AiFDepthNet(n_stack=args['n_stack'])
+    dff_net = AiFDepthNet(n_channels=4, n_stack=args['n_stack'])
     dff_net = nn.DataParallel(dff_net)
-    # if args['train']['dffnet_pretrained']:
-    #     dff_net.load_state_dict(torch.load(args['train']['dffnet_pretrained']))
+    if 'dffnet_pretrained' in args['train'].keys() :
+        net_dict = dff_net.state_dict()
+        pretrain_dict = torch.load(args['train']['dffnet_pretrained'])
+        pretrained_dict = {k: v for k, v in pretrain_dict.items() if net_dict[k].shape == pretrain_dict[k].shape} # 
+        net_dict.update(pretrained_dict)
+        dff_net.load_state_dict(net_dict)
+    dff_net = dff_net.to(device)
     dff_net = dff_net.to(device)
 
     # Dataset
     train_set, val_set = get_dataset(args)
-    train_loader = DataLoader(train_set, batch_size=args['bs'], num_workers=4, pin_memory=True)
+    times_train_set = train_set+train_set+train_set+train_set
+    train_loader = DataLoader(times_train_set, shuffle=True, batch_size=args['bs'], num_workers=4, pin_memory=True)
     val_loader = DataLoader(val_set, batch_size=1)
     print(f'Totally {len(train_set)} images for training, {len(val_set)} images for test.')
 
@@ -88,12 +94,12 @@ def train(args):
     for epoch in range(args['epochs'] + 1):
 
         # Evaluation
-        if epoch % 1 == 0 and epoch > 0:
+        if epoch % 1 == 0 : #and epoch > 0
             validate(dff_net, test_lens, val_loader, epoch, len(val_set), args)
 
         # Training
         dff_net.train()
-        for sample in tqdm(train_loader):
+        for sample in tqdm(train_loader,dynamic_ncols=True):
             # Input data
             aif, depth = sample
             aif = aif.to(device)
@@ -180,6 +186,7 @@ def validate(net, test_lens, valid_dataloader, epoch, num_val, args):
         test_focal_stack = torch.stack(focal_stack, dim=2)  # shape of [B, C, S, H, W]
         test_focus_dists = focus_dists
 
+        img_s = test_focal_stack[:,:3,0]
         # Inference
         test_input_dict = {'stack_rgb_img': test_focal_stack, 'focus_position':test_focus_dists, 'depth':gt_depth}
         
@@ -220,7 +227,7 @@ def validate(net, test_lens, valid_dataloader, epoch, num_val, args):
         # Save AiF images
         save_image(pred_aif, f'{result_img_dir}/img{idx}_pred_aif.png', normalize=True)
         save_image(gt_aif, f'{result_img_dir}/img{idx}_gt_aif.png', normalize=True)
-        
+        save_image(img_s, f'{result_img_dir}/img{idx}_pred_aif.png', normalize=True)
     # Save model (last and best)
     torch.save(net.state_dict(), f'{args["results_dir"]}/depth_net_last.pkl')
     if Avg_mse / num_val < args['mse_min']:

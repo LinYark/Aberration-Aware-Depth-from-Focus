@@ -439,7 +439,8 @@ class PSFNet(Lensgroup):
             psf = self.pred(o)
 
             render = local_psf_render(img, psf, self.kernel_size)
-            return render
+            render_pkg = torch.cat((render,foc_z[:,None,:,:]),dim=1)
+            return render_pkg
 
 
     # ==================================================
