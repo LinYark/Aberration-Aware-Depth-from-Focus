@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from torch.nn.init import xavier_uniform_, zeros_
-
+from torch.cuda.amp import autocast
 class conv3d_bn(nn.Module):
     def __init__(self, in_ch, out_ch, k=(1, 1, 1), s=(1, 1, 1), p=(0, 0, 0)):
         super().__init__()
@@ -87,7 +87,31 @@ class Mixed(nn.Module):
 
         return torch.cat([b0, b1, b2, b3], 1)
 
+class Discriminator(nn.Module):
+    def __init__(self):
+        super(Discriminator, self).__init__()
+        self.net = nn.Sequential(
+            nn.Conv2d(4, 64, kernel_size=3, padding=1),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(64, 128, kernel_size=5, stride=4, padding=2),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(256, 512, kernel_size=5, stride=4, padding=2),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(512, 1024, kernel_size=1),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(1024, 1, kernel_size=1),
+        )
 
+    def forward(self, x):
+        batch_size = x.size(0)
+        return torch.sigmoid(self.net(x).view(batch_size))
+    
 class AiFDepthNet(nn.Module):
     def __init__(self,
                  n_channels=3,
@@ -95,7 +119,8 @@ class AiFDepthNet(nn.Module):
                  n_stack=10,
                  disp_w=1,
                  aif_w=0,
-                 smooth_w=0.2,
+                 smooth_w=0,
+                 gan_w=0.2,
                  focal_length=521.4052,
                  baseline=0.00027087,
                  depth_min=0.1,
@@ -112,6 +137,7 @@ class AiFDepthNet(nn.Module):
         self.disp_w = disp_w
         self.AiF_w = aif_w
         self.SMOOTH_W = smooth_w
+        self.gan_w = gan_w
         self.STAGE2 = stage2.upper()
         # camera configuration
         # self.f_l = focal_length  # focal length
@@ -267,6 +293,7 @@ class AiFDepthNet(nn.Module):
                           kernel_size=(1, 1),
                           stride=(1, 1),
                           padding=(0, 0)), nn.Sigmoid())
+        self.netD = Discriminator()
         self.init_weights()
 
     def init_weights(self):
@@ -275,14 +302,14 @@ class AiFDepthNet(nn.Module):
                 xavier_uniform_(m.weight)
                 if m.bias is not None:
                     zeros_(m.bias)
-
+    @autocast()
     def forward(self, input_dict, args):
         # init
         assert args['stack_num'] == self.n_stack, print(
             "stack num: {}, n_stack: {}".format(str(args['stack_num']),
                                                 str(self.n_stack)))
         stack_rgb = input_dict['stack_rgb_img'].to(args['device'])  # focal stack
-        
+        aif_rgb = input_dict['AiF_img'].to(args['device'])
         # focus position
         if 'focus_position' in input_dict:
             self.d_layers = input_dict['focus_position']
@@ -296,8 +323,17 @@ class AiFDepthNet(nn.Module):
 
         # run model
         outputs = self.fit(stack_rgb, args)
+        real_depth = torch.cat([aif_rgb,input_dict['depth']], dim = 1)
+        real_out = self.netD(real_depth).mean()
+        fake_depth = torch.cat([aif_rgb,outputs['pred_depth']], dim = 1)
+        fake_out = self.netD(fake_depth).mean()
+        d_loss = (1 - real_out)**2 + (fake_out)**2
+        
         losses, outputs = self.compute_loss(outputs, input_dict, args)
-
+        outputs['real_out'] = real_out
+        outputs['fake_out'] = fake_out
+        losses['d_loss'] = d_loss
+        losses['total'] += self.gan_w*torch.mean(1-fake_out)
         return losses, outputs
 
     def fit(self, x, args):

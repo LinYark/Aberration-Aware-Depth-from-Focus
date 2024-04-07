@@ -99,7 +99,7 @@ def train(args):
 
         # Training
         dff_net.train()
-        for sample in tqdm(train_loader,dynamic_ncols=True):
+        for idx, sample in tqdm(enumerate(train_loader), dynamic_ncols=True, total=len(train_loader)):
             # Input data
             aif, depth = sample
             aif = aif.to(device)
@@ -129,7 +129,11 @@ def train(args):
             optimizer.zero_grad()
             with autocast():
                 losses, outputs = dff_net(input_dict, aif_args)
+                lossD = losses['d_loss'].mean()
                 loss = losses['total'].mean()
+            if (idx+1) % 800 ==0:
+                logging.info(f"{lossD.item():3f}, {loss.item():3f},{outputs['real_out'].item():3f},{outputs['fake_out'].item():3f}")
+            scaler.scale(lossD).backward(retain_graph=True)
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
